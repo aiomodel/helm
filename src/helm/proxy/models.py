@@ -39,6 +39,7 @@ AI21_TOKENIZER_TAG: str = "ai21_tokenizer"
 COHERE_TOKENIZER_TAG: str = "cohere_tokenizer"
 OPT_TOKENIZER_TAG: str = "opt_tokenizer"
 GPTJ_TOKENIZER_TAG: str = "gptj_tokenizer"
+OUR_TOKENIZER_TAG: str = "our_tokenizer"
 GPT4_TOKENIZER_TAG: str = "gpt4_tokenizer"
 GPTNEO_TOKENIZER_TAG: str = "gptneo_tokenizer"
 
@@ -269,6 +270,17 @@ ALL_MODELS = [
         group="cohere",
         name="cohere/command-xlarge-beta",
         tags=[TEXT_MODEL_TAG, FULL_FUNCTIONALITY_TEXT_MODEL_TAG, COHERE_TOKENIZER_TAG, INSTRUCTION_FOLLOWING_MODEL_TAG],
+    ),
+    Model(
+        group="ours",
+        name="ours/custom_gpt2_7b",
+        tags=[
+            TEXT_MODEL_TAG,
+            FULL_FUNCTIONALITY_TEXT_MODEL_TAG,
+            ABLATION_MODEL_TAG,
+            OUR_TOKENIZER_TAG,
+            BUGGY_TEMP_0_TAG,
+        ],
     ),
     # EleutherAI
     Model(

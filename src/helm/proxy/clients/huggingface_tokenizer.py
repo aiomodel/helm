@@ -7,6 +7,7 @@ from helm.common.hierarchical_logger import htrack_block, hlog
 
 from helm.proxy.clients.huggingface_model_registry import get_huggingface_model_config
 
+from .custom_tokenizer import WarpTikTokenizer
 
 # Tokenizer names where the HELM tokenizer name and the Hugging Face tokenizer name
 # are identical.
@@ -22,6 +23,7 @@ _KNOWN_TOKENIZER_NAMES: Set[str] = {
     "Writer/palmyra-base",
     "bigcode/starcoder",
     "hf-internal-testing/llama-tokenizer",
+    "ours/custom_gpt2_7b",
 }
 
 
@@ -48,6 +50,12 @@ class HuggingFaceTokenizers:
             tokenizer_kwargs = {}
             if revision is not None:
                 tokenizer_kwargs["revision"] = revision
+            if hf_tokenizer_name == "ours/custom_gpt2_7b":
+                tokenizer = WarpTikTokenizer(add_bos_token=False, add_eos_token=False)
+                tokenizer.padding_side = "left"
+                tokenizer.pad_token = tokenizer.eos_token
+                tokenizer.model_max_length = 2048
+                return tokenizer
             try:
                 # From the Hugging Face documentation, "local_files_only(defaults to False) —
                 # Whether or not to only look at local files".

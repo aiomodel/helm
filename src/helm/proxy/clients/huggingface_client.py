@@ -1,7 +1,9 @@
 from copy import deepcopy
+import os
+import re
 import torch
 from dataclasses import asdict
-from transformers import AutoModelForCausalLM, AutoTokenizer
+from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from typing import Any, Dict, List
 
 from helm.common.cache import Cache, CacheConfig
@@ -14,27 +16,65 @@ from helm.common.tokenization_request import (
     DecodeRequestResult,
     TokenizationToken,
 )
+from .custom_gpt2 import GPT2ForCausalLM
+from .custom_tokenizer import WarpTikTokenizer
 from .client import Client, wrap_request_time, truncate_sequence
 from .huggingface_tokenizer import HuggingFaceTokenizers
 from helm.proxy.clients.huggingface_model_registry import HuggingFaceModelConfig, get_huggingface_model_config
 
 
 class HuggingFaceServer:
-    def __init__(self, model_config: HuggingFaceModelConfig):
+    def __init__(self, model_config: HuggingFaceModelConfig, is_ours=False):
         if torch.cuda.is_available():
             hlog("CUDA is available, initializing with a GPU...")
             self.device: str = "cuda:0"
         else:
             self.device = "cpu"
-        model_kwargs = {}
-        if model_config.revision:
-            model_kwargs["revision"] = model_config.revision
-        with htrack_block(f"Loading Hugging Face model for config {model_config}"):
-            self.model = AutoModelForCausalLM.from_pretrained(
-                model_config.model_id, trust_remote_code=True, **model_kwargs
-            ).to(self.device)
-        with htrack_block(f"Loading Hugging Face tokenizer model for config {model_config}"):
-            self.tokenizer = AutoTokenizer.from_pretrained(model_config.model_id, **model_kwargs)
+        if not is_ours:
+            model_kwargs = {}
+            if model_config.revision:
+                model_kwargs["revision"] = model_config.revision
+            with htrack_block(f"Loading Hugging Face model for config {model_config}"):
+                self.model = AutoModelForCausalLM.from_pretrained(
+                    model_config.model_id, trust_remote_code=True, **model_kwargs
+                ).to(self.device)
+        else:
+            # model = AutoModelForCausalLM.from_pretrained(ckpt_dir, device_map = 'balanced_low_0', torch_dtype=torch.bfloat16, trust_remote_code=True)\
+            ckpt_dir = "/mnt/checkpoints/ours_6b7_DistDataV2_CCv3_300B_tohf/"
+            _config = AutoConfig.from_pretrained(ckpt_dir)
+            _config.use_flash_attn = False
+            _config.scale_attn_weights = True
+            model = GPT2ForCausalLM(_config)
+            model.from_pretrained(ckpt_dir,
+                device_map="balanced_low_0",
+                offload_folder="./offload",
+                load_in_8bit=False,
+                torch_dtype=_config.torch_dtype, #"null"
+            )
+            checkpoint_file = os.path.join(ckpt_dir, "pytorch_model.bin")
+            ckpt = torch.load(checkpoint_file)
+            msg = model.load_state_dict(ckpt, strict=False)
+            missing_keys = msg.missing_keys
+            unexpected_keys = msg.unexpected_keys
+            #### NOTICE: inv_freq, core_attention.bias, core_attention.masked_bias are buffers, which can be ignored
+            if model._keys_to_ignore_on_load_missing is not None:
+                for pat in model._keys_to_ignore_on_load_missing:
+                    missing_keys = [k for k in missing_keys if re.search(pat, k) is None]
+            if model._keys_to_ignore_on_load_unexpected is not None:
+                for pat in model._keys_to_ignore_on_load_unexpected:
+                    unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
+            print("loading msg:", "\n\tmissing:", missing_keys, "\n\tunexpected:", unexpected_keys)
+            assert len(missing_keys) == 0 and len(unexpected_keys) == 0, "error in loading ckpt"
+            model.to(self.device)
+        if not is_ours:
+            with htrack_block(f"Loading Hugging Face tokenizer model for config {model_config}"):
+                self.tokenizer = AutoTokenizer.from_pretrained(model_config.model_id, **model_kwargs)
+        else:
+            tokenizer = WarpTikTokenizer(add_bos_token=False, add_eos_token=False)
+            tokenizer.padding_side = "left"
+            tokenizer.pad_token = tokenizer.eos_token
+            tokenizer.model_max_length = 2048
+            self.tokenizer = tokenizer
 
     def serve_request(self, raw_request: Dict[str, Any]):
         encoded_input = self.tokenizer(raw_request["prompt"], return_tensors="pt").to(self.device)
@@ -123,6 +163,7 @@ class HuggingFaceClient(Client):
         self.model_server_instances: Dict[str, HuggingFaceServer] = {}
 
     def get_model_server_instance(self, model) -> HuggingFaceServer:
+        print("\n\n\n\n\n\n\n############# HERE IS OUR MODIFICATION ##############\n\n\n\n\n\n")
         if model not in self.model_server_instances:
             model_config = get_huggingface_model_config(model)
             if model_config:
@@ -140,6 +181,10 @@ class HuggingFaceClient(Client):
             elif model == "huggingface/starcoder":
                 self.model_server_instances[model] = HuggingFaceServer(
                     HuggingFaceModelConfig.from_string("bigcode/starcoder")
+                )
+            elif model == "ours/custom_gpt2_7b":
+                self.model_server_instances[model] = HuggingFaceServer(
+                    HuggingFaceModelConfig.from_string("ours/custom_gpt2_7b"), is_ours=True
                 )
             else:
                 raise Exception(f"Unknown HuggingFace model: {model}")
