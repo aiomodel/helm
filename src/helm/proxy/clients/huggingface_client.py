@@ -44,28 +44,28 @@ class HuggingFaceServer:
             _config = AutoConfig.from_pretrained(ckpt_dir)
             _config.use_flash_attn = False
             _config.scale_attn_weights = True
-            model = GPT2ForCausalLM(_config)
-            model.from_pretrained(ckpt_dir,
-                device_map="balanced_low_0",
+            self.model = GPT2ForCausalLM(_config)
+            self.model.from_pretrained(ckpt_dir,
+                # device_map="balanced_low_0",  # need accelerate
                 offload_folder="./offload",
                 load_in_8bit=False,
                 torch_dtype=_config.torch_dtype, #"null"
             )
             checkpoint_file = os.path.join(ckpt_dir, "pytorch_model.bin")
             ckpt = torch.load(checkpoint_file)
-            msg = model.load_state_dict(ckpt, strict=False)
+            msg = self.model.load_state_dict(ckpt, strict=False)
             missing_keys = msg.missing_keys
             unexpected_keys = msg.unexpected_keys
             #### NOTICE: inv_freq, core_attention.bias, core_attention.masked_bias are buffers, which can be ignored
-            if model._keys_to_ignore_on_load_missing is not None:
-                for pat in model._keys_to_ignore_on_load_missing:
+            if self.model._keys_to_ignore_on_load_missing is not None:
+                for pat in self.model._keys_to_ignore_on_load_missing:
                     missing_keys = [k for k in missing_keys if re.search(pat, k) is None]
-            if model._keys_to_ignore_on_load_unexpected is not None:
-                for pat in model._keys_to_ignore_on_load_unexpected:
+            if self.model._keys_to_ignore_on_load_unexpected is not None:
+                for pat in self.model._keys_to_ignore_on_load_unexpected:
                     unexpected_keys = [k for k in unexpected_keys if re.search(pat, k) is None]
             print("loading msg:", "\n\tmissing:", missing_keys, "\n\tunexpected:", unexpected_keys)
             assert len(missing_keys) == 0 and len(unexpected_keys) == 0, "error in loading ckpt"
-            model.to(self.device)
+            self.model.to(self.device)
         if not is_ours:
             with htrack_block(f"Loading Hugging Face tokenizer model for config {model_config}"):
                 self.tokenizer = AutoTokenizer.from_pretrained(model_config.model_id, **model_kwargs)
@@ -118,7 +118,7 @@ class HuggingFaceServer:
                 topk_logprobs = torch.topk(logprobs, k=top_k_per_token)
                 top_logprobs_dicts.append(
                     {
-                        self.tokenizer.convert_ids_to_tokens(k.item()): v.item()
+                        self.tokenizer.convert_ids_to_tokens(k.item()).decode('utf-8'): v.item()
                         for (k, v) in zip(topk_logprobs.indices, topk_logprobs.values)
                     }
                 )
@@ -163,8 +163,8 @@ class HuggingFaceClient(Client):
         self.model_server_instances: Dict[str, HuggingFaceServer] = {}
 
     def get_model_server_instance(self, model) -> HuggingFaceServer:
-        print("\n\n\n\n\n\n\n############# HERE IS OUR MODIFICATION ##############\n\n\n\n\n\n")
         if model not in self.model_server_instances:
+            print("\n\n\n\n\n\n\n############# HERE IS OUR MODIFICATION ##############\n\n\n\n\n\n")
             model_config = get_huggingface_model_config(model)
             if model_config:
                 self.model_server_instances[model] = HuggingFaceServer(model_config)

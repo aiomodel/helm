@@ -209,6 +209,10 @@ class WarpTikTokenizer(PreTrainedTokenizer):
     @property
     def eos_token(self) -> str:
         return self.tokenizer.eod_token
+
+    @property
+    def bos_token(self) -> str:
+        return self.tokenizer.eod_token
     
     @property
     def bos_token_id(self) -> Optional[int]:

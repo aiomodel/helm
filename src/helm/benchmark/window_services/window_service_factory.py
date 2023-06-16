@@ -175,6 +175,8 @@ class WindowServiceFactory:
                 )
             else:
                 window_service = AI21WindowService(service=service, gpt2_window_service=GPT2WindowService(service))
+        elif model_name == "ours/custom_gpt2_7b":
+            window_service = HuggingFaceWindowService(service, model_config="ours/custom_gpt2_7b")
         else:
             raise ValueError(f"Unhandled model name: {model_name}")
 

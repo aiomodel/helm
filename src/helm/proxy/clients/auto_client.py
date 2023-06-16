@@ -136,6 +136,8 @@ class AutoClient(Client):
                 )
             elif organization == "nvidia":
                 client = MegatronClient(cache_config=cache_config)
+            elif model == "ours/custom_gpt2_7b":
+                client = HuggingFaceClient(cache_config=cache_config)
             else:
                 raise ValueError(f"Could not find client for model: {model}")
             self.clients[model] = client
@@ -210,6 +212,8 @@ class AutoClient(Client):
                 client = SimpleClient(cache_config=cache_config)
             elif organization == "nvidia":
                 client = MegatronClient(cache_config=cache_config)
+            elif tokenizer == "ours/custom_gpt2_7b":
+                client = HuggingFaceClient(cache_config=cache_config)
             else:
                 raise ValueError(f"Could not find tokenizer client for model: {tokenizer}")
             self.tokenizer_clients[tokenizer] = client
