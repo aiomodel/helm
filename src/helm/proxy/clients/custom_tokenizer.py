@@ -103,7 +103,7 @@ class TikTokenizer(AbstractTokenizer):
         return self.i_2_v
 
     def tokenize(self, text):
-        return self.tokenizer.encode(text)
+        return self.tokenizer.encode(text, allowed_special="all")
 
     def detokenize(self, token_ids):
         return self.tokenizer.decode(token_ids)
@@ -243,10 +243,20 @@ class WarpTikTokenizer(PreTrainedTokenizer):
 
     def _convert_id_to_token(self, index):
         """Converts an index (integer) in a token (str) using the vocab."""
+        if index == self.eos_token_id:
+            return self.eos_token
         return self.tokenizer.inv_vocab[index]
 
     def convert_tokens_to_string(self, tokens):
         """Converts a sequence of tokens (string) in a single string."""
+        if len(tokens) == 1:
+            # just return its binary format
+            try:
+                tokens = tokens[0].decode("utf-8")
+            except:
+                # only str(xx): "bytes:b'\\x99'" -> "bytes:\\x99"
+                tokens = "bytes:" + str(tokens[0]).replace("b'\\", '\\').strip("'")
+            return tokens
         current_sub_tokens = []
         out_string = ""
         prev_is_special = False
