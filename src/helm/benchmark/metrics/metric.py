@@ -127,8 +127,8 @@ class Metric(ABC):
             # Construct inputs
             request_state_sets: List[RequestStateSet] = []
             for instance in scenario_state.instances:
-                generation_states = scenario_state.get_request_states(train_trial_index, instance, None)
-                references_states = []
+                generation_states = scenario_state.get_request_states(train_trial_index, instance, None) # e.g. hellaswag: None
+                references_states = [] # e.g. hellaswag: group references belone to one instance (get len=4)
                 for reference_index in range(len(instance.references)):
                     references_states.extend(
                         scenario_state.get_request_states(train_trial_index, instance, reference_index)

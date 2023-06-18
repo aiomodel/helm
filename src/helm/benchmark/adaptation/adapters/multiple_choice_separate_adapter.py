@@ -38,6 +38,7 @@ class MultipleChoiceSeparateAdapter(InContextLearningAdapter):
             max_tokens=0,
             stop_sequences=[],
             echo_prompt=True,
+            instance=eval_instance,  # Input.text is the input;
         )
         return RequestState(
             instance=eval_instance,

@@ -66,6 +66,7 @@ class HuggingFaceServer:
             print("loading msg:", "\n\tmissing:", missing_keys, "\n\tunexpected:", unexpected_keys)
             assert len(missing_keys) == 0 and len(unexpected_keys) == 0, "error in loading ckpt"
             self.model.to(self.device)
+            # self.model.eval()
         if not is_ours:
             with htrack_block(f"Loading Hugging Face tokenizer model for config {model_config}"):
                 self.tokenizer = AutoTokenizer.from_pretrained(model_config.model_id, **model_kwargs)
@@ -100,10 +101,22 @@ class HuggingFaceServer:
             if key not in ["engine", "prompt", "echo_prompt", "stop_sequences"]
         }
 
-        # Use HuggingFace's `generate` method.
-        output = self.model.generate(**encoded_input, **relevant_raw_request)
-        sequences = output.sequences
-        scores = output.scores
+        if "instance" in raw_request:
+            # Use HuggingFace's `forward` method.
+            output = self.model.forward(**encoded_input)
+            # output includes: dict_keys(['loss', 'logits', 'past_key_values', 'hidden_states', 'attentions', 'cross_attentions'])
+            # output.logits.shape == [bs * seq_len * vocab_size] (before softmax)
+            sequences = encoded_input.input_ids  # sequences = prompt = instance + reference (see as something generated) 
+            encoded_input = self.tokenizer(raw_request["instance"], return_tensors="pt").to(self.device)  # encoded_input = instance
+            scores = output.logits
+            raw_request["num_return_sequences"] = 1
+        else:
+            # Use HuggingFace's `generate` method.
+            output = self.model.generate(**encoded_input, **relevant_raw_request)
+            sequences = output.sequences
+            scores = output.scores
+            # notice it doesn't support any scores for prompt tokens, which means it returns no-sense for MultipleChoiceSeparateAdapter like hellaswag
+            # https://github.com/stanford-crfm/helm/issues/1469
 
         # Compute logprobs for each completed sequence.
         all_logprobs_of_chosen_tokens = []
@@ -211,6 +224,8 @@ class HuggingFaceClient(Client):
             "top_k_per_token": request.top_k_per_token,
             "stop_sequences": request.stop_sequences,
         }
+        if "instance" in request:
+            raw_request["instance"] = request["instance"]
 
         # Get cached model server instance if possible (to save on model and tokenizer
         # loading times).

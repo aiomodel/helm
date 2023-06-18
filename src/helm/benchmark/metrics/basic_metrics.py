@@ -722,6 +722,7 @@ class BasicMetric(Metric):
         """
         Perform evaluation when we have made different requests for each reference.
         For each reference, we have a model score (log probability) and whether it's correct.
+        # for one instance only
         """
 
         @dataclass(frozen=True)
@@ -767,10 +768,13 @@ class BasicMetric(Metric):
         reference_stats: Dict[ReferenceKey, ReferenceStat] = {}
         for request_state in reference_request_states:
             assert request_state.reference_index is not None and request_state.request_mode is not None
+            # for hellaswag: request_state.request_mode == original
             reference_key = ReferenceKey(request_state.reference_index, request_state.request_mode)
             reference_stats[reference_key] = compute_logprob_and_length(request_state, window_service)
 
         if adapter_spec.method in [ADAPT_MULTIPLE_CHOICE_SEPARATE_ORIGINAL, ADAPT_RANKING_BINARY]:
+            # ADAPT_MULTIPLE_CHOICE_SEPARATE_ORIGINAL for hellaswag
+            # NOTICE: by default, we normalize the choice lengths
             reference_scores = [
                 reference_stats[ReferenceKey(i, "original")].logprob
                 / reference_stats[ReferenceKey(i, "original")].num_tokens
