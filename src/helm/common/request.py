@@ -59,6 +59,9 @@ class Request:
     if messages is specified for a chat model, the prompt is ignored.
     Otherwise, the client should convert the prompt into a message."""
 
+    additional: Optional[Dict[str, str]] = None
+    """Any additional information"""
+
     @property
     def model_organization(self) -> str:
         """Example: 'openai/davinci' => 'openai'"""

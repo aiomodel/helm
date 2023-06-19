@@ -121,6 +121,7 @@ class LanguageModelingAdapter(Adapter):
             stop_sequences=self.adapter_spec.stop_sequences,
             echo_prompt=True,
             random=self.adapter_spec.random,
+            additional={"instance": prompt_text},  # for huggingfaceclient
         )
         request_state = RequestState(
             instance=eval_instance,
@@ -168,6 +169,7 @@ class LanguageModelingAdapter(Adapter):
                 max_tokens=self.adapter_spec.max_tokens,  # usually this is zero
                 stop_sequences=self.adapter_spec.stop_sequences,
                 echo_prompt=True,
+                additional={"instance": prompt_text},  # for huggingfaceclient
             )
             request_state = RequestState(
                 instance=eval_instance,

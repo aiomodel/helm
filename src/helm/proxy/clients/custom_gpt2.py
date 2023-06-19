@@ -259,7 +259,7 @@ class CoreAttention(nn.Module):
         key_layer = key_layer.permute(2, 0, 1, 3).contiguous()
         value_layer = value_layer.permute(2, 0, 1, 3).contiguous()
         if layer_past is not None:
-            layer_past = layer_past.permute(2, 0, 1, 3).contiguous()
+            layer_past = tuple(_layer_past.permute(2, 0, 1, 3).contiguous() for _layer_past in layer_past)
 
         # [b, np, sq, sk]
         output_size = (query_layer.size(1),
@@ -288,7 +288,7 @@ class CoreAttention(nn.Module):
 
             seq_len = key_layer.shape[0]
             offset = 0
-            if layer_past is not None and layer_past.numel() > 0:
+            if layer_past is not None and layer_past[0].numel() > 0:
                 offset = layer_past[0].shape[0]
                 seq_len += offset
             cos, sin = self.rotary_emb(value_layer, seq_len=seq_len)
@@ -413,7 +413,7 @@ class FlashSelfAttention(nn.Module):
         key_layer = key_layer.permute(2, 0, 1, 3).contiguous()
         value_layer = value_layer.permute(2, 0, 1, 3).contiguous()
         if layer_past is not None:
-            layer_past = layer_past.permute(2, 0, 1, 3).contiguous()
+            layer_past = tuple(_layer_past.permute(2, 0, 1, 3).contiguous() for _layer_past in layer_past)
 
         seqlen = query_layer.shape[0]
         assert seqlen == key_layer.shape[0]
@@ -431,7 +431,7 @@ class FlashSelfAttention(nn.Module):
 
             seq_len = key_layer.shape[0]
             offset = 0
-            if layer_past is not None and layer_past.numel() > 0:
+            if layer_past is not None and layer_past[0].numel() > 0:
                 offset = layer_past[0].shape[0]
                 seq_len += offset
             cos, sin = self.rotary_emb(value_layer, seq_len=seq_len)

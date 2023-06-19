@@ -101,15 +101,28 @@ class HuggingFaceServer:
             if key not in ["engine", "prompt", "echo_prompt", "stop_sequences"]
         }
 
-        if "instance" in raw_request:
+        if raw_request["additional"] is not None and "instance" in raw_request["additional"]:
+            """
+            # test for MultipleChoiceSeparateAdapter only
+            """
             # Use HuggingFace's `forward` method.
             output = self.model.forward(**encoded_input)
             # output includes: dict_keys(['loss', 'logits', 'past_key_values', 'hidden_states', 'attentions', 'cross_attentions'])
             # output.logits.shape == [bs * seq_len * vocab_size] (before softmax)
             sequences = encoded_input.input_ids  # sequences = prompt = instance + reference (see as something generated) 
-            encoded_input = self.tokenizer(raw_request["instance"], return_tensors="pt").to(self.device)  # encoded_input = instance
+            encoded_input = self.tokenizer(raw_request["additional"]["instance"], return_tensors="pt").to(self.device)  # encoded_input = instance
             scores = output.logits
+            scores = scores.permute(1, 0, 2).contiguous()
             raw_request["num_return_sequences"] = 1
+            scores_bias = len(encoded_input.input_ids[0]) - 1 # minus one for auto-regressive 
+            # A B C D E = A B (instance) C D E (reference)
+            # bias = 1; scores of B -> C index; (also scores C + index D; scores D + index E; (follow lm_eval_harness, chunk the last token is deleted))
+            # how this all works:
+            #          CTX      CONT
+            # inp    0 1 2 3|4 5 6 7 8 9   <- last token is deleted by inp[:, :-1]
+            # gpt2    \               \
+            # logits   1 2 3|4 5 6 7 8 9   <- the ctx half gets tossed out by the
+            # cont_toks      4 5 6 7 8 9      [:, -len(continuation_enc):, :self.vocab_size] slice
         else:
             # Use HuggingFace's `generate` method.
             output = self.model.generate(**encoded_input, **relevant_raw_request)
@@ -117,6 +130,7 @@ class HuggingFaceServer:
             scores = output.scores
             # notice it doesn't support any scores for prompt tokens, which means it returns no-sense for MultipleChoiceSeparateAdapter like hellaswag
             # https://github.com/stanford-crfm/helm/issues/1469
+            scores_bias = 0
 
         # Compute logprobs for each completed sequence.
         all_logprobs_of_chosen_tokens = []
@@ -125,16 +139,28 @@ class HuggingFaceServer:
             logprobs_of_chosen_tokens = []
             top_logprobs_dicts = []
             for i in range(len(sequences[completion_id]) - len(encoded_input.input_ids[0])):
-                logprobs = torch.nn.functional.log_softmax(scores[i][completion_id], dim=0)
+                logprobs = torch.nn.functional.log_softmax(scores[i + scores_bias][completion_id], dim=0)
 
                 # Get top tokens in terms of log probability.
                 topk_logprobs = torch.topk(logprobs, k=top_k_per_token)
-                top_logprobs_dicts.append(
-                    {
-                        self.tokenizer.convert_ids_to_tokens(k.item()).decode('utf-8'): v.item()
-                        for (k, v) in zip(topk_logprobs.indices, topk_logprobs.values)
-                    }
-                )
+                # top_logprobs_dicts.append(
+                #     {
+                #         self.tokenizer.convert_ids_to_tokens(k.item()): v.item()  # self.tokenizer.convert_ids_to_tokens(k.item()).decode('utf-8')
+                #         for (k, v) in zip(topk_logprobs.indices, topk_logprobs.values)
+                #     }
+                # )
+                # V2: force convert to utf-8 not bytes; especially for tiktoken
+                _token_dict = dict()
+                for (k, v) in zip(topk_logprobs.indices, topk_logprobs.values):
+                    k = self.tokenizer.convert_ids_to_tokens(k.item())
+                    if type(k) == bytes:
+                        try:
+                            k = k.decode("utf-8")
+                        except:
+                            # only str(xx): "bytes:b'\\x99'" -> "bytes:\\x99"
+                            k = "bytes:" + str(k).replace("b'\\", '\\').strip("'")
+                    _token_dict[k] = v.item()
+                top_logprobs_dicts.append(_token_dict)
 
                 # Get log probability of chosen token.
                 j = i + len(encoded_input.input_ids[0])
@@ -223,9 +249,8 @@ class HuggingFaceClient(Client):
             "echo_prompt": request.echo_prompt,
             "top_k_per_token": request.top_k_per_token,
             "stop_sequences": request.stop_sequences,
+            "additional": request.additional
         }
-        if "instance" in request:
-            raw_request["instance"] = request["instance"]
 
         # Get cached model server instance if possible (to save on model and tokenizer
         # loading times).
