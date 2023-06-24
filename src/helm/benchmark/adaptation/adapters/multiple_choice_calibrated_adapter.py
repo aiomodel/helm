@@ -28,6 +28,7 @@ class MultipleChoiceCalibratedAdapter(MultipleChoiceSeparateAdapter):
 
             # calibration
             # Compute the logprobs of the reference without train instances and the input question.
+            new_eval_instance = replace(eval_instance, input=Input(text="Answer:"))
             prompt = self.construct_prompt(
                 [],
                 replace(eval_instance, input=Input(text="Answer:")),
@@ -35,7 +36,7 @@ class MultipleChoiceCalibratedAdapter(MultipleChoiceSeparateAdapter):
                 reference_index=reference_index,
             )
             request_states.append(
-                self.construct_request_state(prompt, reference_index, eval_instance, request_mode="calibration")
+                self.construct_request_state(prompt, reference_index, eval_instance, request_mode="calibration", neval_instance=new_eval_instance)
             )
 
         return request_states

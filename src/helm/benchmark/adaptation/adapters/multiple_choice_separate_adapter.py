@@ -28,7 +28,7 @@ class MultipleChoiceSeparateAdapter(InContextLearningAdapter):
         return request_states
 
     def construct_request_state(
-        self, prompt: Prompt, reference_index: int, eval_instance: Instance, request_mode: str = "original"
+        self, prompt: Prompt, reference_index: int, eval_instance: Instance, request_mode: str = "original", neval_instance = None
     ) -> RequestState:
         request = Request(
             model=self.adapter_spec.model,
@@ -38,7 +38,7 @@ class MultipleChoiceSeparateAdapter(InContextLearningAdapter):
             max_tokens=0,
             stop_sequences=[],
             echo_prompt=True,
-            additional={"instance": eval_instance.input.text},  # Input.text is the input;
+            additional={"instance": eval_instance.input.text} if request_mode == "original" else {"instance": neval_instance.input.text},  # Input.text is the input;
         )
         return RequestState(
             instance=eval_instance,
