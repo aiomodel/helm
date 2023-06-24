@@ -282,6 +282,17 @@ ALL_MODELS = [
             BUGGY_TEMP_0_TAG,
         ],
     ),
+    Model(
+        group="EleutherAI",
+        name="EleutherAI/gpt-j-6b",
+        tags=[
+            TEXT_MODEL_TAG,
+            FULL_FUNCTIONALITY_TEXT_MODEL_TAG,
+            ABLATION_MODEL_TAG,
+            GPTJ_TOKENIZER_TAG,
+            BUGGY_TEMP_0_TAG,
+        ],
+    ),
     # EleutherAI
     Model(
         group="together",

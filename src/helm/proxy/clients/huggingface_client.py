@@ -85,12 +85,14 @@ class HuggingFaceServer:
         raw_request["output_scores"] = True
         top_k_per_token: int = raw_request["top_k_per_token"]
         del raw_request["top_k_per_token"]
+        stop_sequences = None
         if len(raw_request["stop_sequences"]) > 0:
             stop_sequence_ids = self.tokenizer(raw_request["stop_sequences"])
             # Total number of stop words should be 1.
             assert len(stop_sequence_ids.input_ids) == 1
             # Total number of tokens in each stop word should be 1.
             assert len(stop_sequence_ids.input_ids[0]) == 1
+            stop_sequences = raw_request["stop_sequences"][0]
             del raw_request["stop_sequences"]
             raw_request["eos_token_id"] = stop_sequence_ids.input_ids[0][0]
 
@@ -120,10 +122,12 @@ class HuggingFaceServer:
             # how this all works:
             #          CTX      CONT
             # inp    0 1 2 3|4 5 6 7 8 9   <- last token is deleted by inp[:, :-1]
-            # gpt2    \               \
+            # gpt2    \     \          \
             # logits   1 2 3|4 5 6 7 8 9   <- the ctx half gets tossed out by the
             # cont_toks      4 5 6 7 8 9      [:, -len(continuation_enc):, :self.vocab_size] slice
         else:
+            # V1:
+            """
             # Use HuggingFace's `generate` method.
             output = self.model.generate(**encoded_input, **relevant_raw_request)
             sequences = output.sequences
@@ -131,6 +135,38 @@ class HuggingFaceServer:
             # notice it doesn't support any scores for prompt tokens, which means it returns no-sense for MultipleChoiceSeparateAdapter like hellaswag
             # https://github.com/stanford-crfm/helm/issues/1469
             scores_bias = 0
+            """
+            # V2:  [Debug Only; Greedy decoding]
+            with torch.no_grad():
+                self.model.config.use_cache = False  # to save gpu memory
+                merged_scores = []
+                scores_bias = 0
+                assert raw_request["num_return_sequences"] == 1, "only support greedy sampling (means return seq = 1)"
+                _encoded_input = deepcopy(encoded_input)
+                while True:
+                    assert _encoded_input.input_ids.shape[0] == 1, "only support bs=1"
+                    output = self.model.forward(**_encoded_input)
+                    scores = output.logits.cpu()
+                    del output  # to save gpu memory
+                    torch.cuda.empty_cache()
+                    torch.cuda.reset_peak_memory_stats()
+                    scores = scores.permute(1, 0, 2).contiguous()
+                    _scores = torch.nn.functional.log_softmax(scores, dim=-1)
+                    # we do greedy sample without any temperature or top-p/k or nuclear or beam search
+                    topk_logprobs = torch.topk(_scores, k=1)
+                    decoded_token = self.tokenizer.convert_ids_to_tokens([topk_logprobs.indices[-1,0,0].item()])
+                    _encoded_input["input_ids"] = torch.cat([_encoded_input["input_ids"], topk_logprobs.indices[-1,0,0].unsqueeze(0).unsqueeze(0).to(self.model.device)], dim=-1)
+                    _encoded_input["attention_mask"] = torch.cat([_encoded_input["attention_mask"], torch.tensor([1]).unsqueeze(0).to(self.model.device)], dim=-1)
+
+                    merged_scores.append(scores[-1,:,:])  # we only need the last one
+                    if stop_sequences is not None and stop_sequences in self.tokenizer.convert_tokens_to_string(decoded_token):
+                        # raw_request["stop_sequences"] == '\n'
+                        # print(f" We stop due to {decoded_token}")
+                        break
+                    if len(merged_scores) == raw_request["max_new_tokens"]:
+                        break
+                sequences = _encoded_input.input_ids
+                scores = merged_scores
 
         # Compute logprobs for each completed sequence.
         all_logprobs_of_chosen_tokens = []
@@ -207,9 +243,9 @@ class HuggingFaceClient(Client):
             model_config = get_huggingface_model_config(model)
             if model_config:
                 self.model_server_instances[model] = HuggingFaceServer(model_config)
-            elif model == "EleutherAI/gpt-j-6B":
+            elif model == "EleutherAI/gpt-j-6b":
                 self.model_server_instances[model] = HuggingFaceServer(
-                    HuggingFaceModelConfig.from_string("EleutherAI/gpt-j-6B")
+                    HuggingFaceModelConfig.from_string("EleutherAI/gpt-j-6b")
                 )
             elif model == "huggingface/gpt2":
                 self.model_server_instances[model] = HuggingFaceServer(HuggingFaceModelConfig.from_string("gpt2"))

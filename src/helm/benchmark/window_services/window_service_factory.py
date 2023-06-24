@@ -119,7 +119,7 @@ class WindowServiceFactory:
             # From https://github.com/THUDM/GLM-130B, "the tokenizer is implemented based on
             # icetk---a unified multimodal tokenizer for images, Chinese, and English."
             window_service = ICEWindowService(service)
-        elif model_name in ["huggingface/gpt-j-6b", "together/gpt-j-6b", "together/gpt-jt-6b-v1", "gooseai/gpt-j-6b"]:
+        elif model_name in ["EleutherAI/gpt-j-6b", "huggingface/gpt-j-6b", "together/gpt-j-6b", "together/gpt-jt-6b-v1", "gooseai/gpt-j-6b"]:
             window_service = GPTJWindowService(service)
         elif model_name in [
             "together/gpt-neox-20b",
