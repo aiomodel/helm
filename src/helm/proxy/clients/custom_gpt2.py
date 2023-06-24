@@ -202,14 +202,19 @@ def rotate_half(x):
     x1, x2 = x[..., :x.shape[-1] // 2], x[..., x.shape[-1] // 2:]
     return torch.cat((-x2, x1), dim=x1.ndim - 1)  # dim=-1 triggers a bug in earlier torch versions
 
-@torch.jit.script
-def apply_rotary_pos_emb(q, k, cos, sin, offset: int = 0):
-    cos, sin = cos[offset:q.shape[0] + offset, ...].unsqueeze(0).unsqueeze(0), sin[offset:q.shape[0] + offset, ...].unsqueeze(0).unsqueeze(0)
-    return (q * cos) + (rotate_half(q) * sin), (k * cos) + (rotate_half(k) * sin)
+def apply_rotary_pos_emb(q, k, cos, sin, offset = 0):
+    if type(offset) == int:
+        offset = [offset, offset]
+    cos_q, sin_q = cos[offset[0]:q.shape[0] + offset[0], ...].unsqueeze(0).unsqueeze(0), sin[offset[0]:q.shape[0] + offset[0], ...].unsqueeze(0).unsqueeze(0)
+    cos_k, sin_k = cos[offset[1]:k.shape[0] + offset[1], ...].unsqueeze(0).unsqueeze(0), sin[offset[1]:k.shape[0] + offset[1], ...].unsqueeze(0).unsqueeze(0)
+    return (q * cos_q) + (rotate_half(q) * sin_q), (k * cos_k) + (rotate_half(k) * sin_k)
 
-def apply_rotary_pos_emb_torch(q, k, cos, sin, offset: int = 0):  # jitting fails with bf16
-    cos, sin = cos[offset:q.shape[0] + offset, ...], sin[offset:q.shape[0] + offset, ...]
-    return (q * cos) + (rotate_half(q) * sin), (k * cos) + (rotate_half(k) * sin)
+def apply_rotary_pos_emb_torch(q, k, cos, sin, offset = 0):  # jitting fails with bf16
+    if type(offset) == int:
+        offset = [offset, offset]
+    cos_q, sin_q = cos[offset[0]:q.shape[0] + offset[0], ...], sin[offset[0]:q.shape[0] + offset[0], ...]
+    cos_k, sin_k = cos[offset[1]:k.shape[0] + offset[1], ...], sin[offset[1]:k.shape[0] + offset[1], ...]
+    return (q * cos_q) + (rotate_half(q) * sin_q), (k * cos_k) + (rotate_half(k) * sin_k)
 
 
 class CoreAttention(nn.Module):
@@ -289,8 +294,9 @@ class CoreAttention(nn.Module):
             seq_len = key_layer.shape[0]
             offset = 0
             if layer_past is not None and layer_past[0].numel() > 0:
-                offset = layer_past[0].shape[0]
-                seq_len += offset
+                offset = [layer_past[0].shape[0], offset]
+                # for cache: we have complete key/value (i.e. layer_past)
+                # seq_len += offset
             cos, sin = self.rotary_emb(value_layer, seq_len=seq_len)
             query_layer, key_layer = apply_rotary_fn(query_layer, key_layer, cos, sin, offset=offset)
 
@@ -432,8 +438,9 @@ class FlashSelfAttention(nn.Module):
             seq_len = key_layer.shape[0]
             offset = 0
             if layer_past is not None and layer_past[0].numel() > 0:
-                offset = layer_past[0].shape[0]
-                seq_len += offset
+                offset = [layer_past[0].shape[0], offset]
+                # for cache: we have complete key/value (i.e. layer_past)
+                # seq_len += offset
             cos, sin = self.rotary_emb(value_layer, seq_len=seq_len)
             query_layer, key_layer = apply_rotary_fn(query_layer, key_layer, cos, sin, offset=offset)
         

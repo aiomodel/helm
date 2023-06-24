@@ -127,7 +127,6 @@ class HuggingFaceServer:
             # cont_toks      4 5 6 7 8 9      [:, -len(continuation_enc):, :self.vocab_size] slice
         else:
             # V1:
-            """
             # Use HuggingFace's `generate` method.
             output = self.model.generate(**encoded_input, **relevant_raw_request)
             sequences = output.sequences
@@ -167,7 +166,7 @@ class HuggingFaceServer:
                         break
                 sequences = _encoded_input.input_ids
                 scores = merged_scores
-
+            """
         # Compute logprobs for each completed sequence.
         all_logprobs_of_chosen_tokens = []
         all_top_logprobs_dicts = []
