@@ -54,6 +54,7 @@ class BinaryRankingAdapter(InContextLearningAdapter):
                 max_tokens=self.adapter_spec.max_tokens,
                 stop_sequences=self.adapter_spec.stop_sequences,
                 random=self.adapter_spec.random,
+                additional=r'Output Scores' # we can't use it in summarize
             )
             request_state = RequestState(
                 instance=eval_instance,

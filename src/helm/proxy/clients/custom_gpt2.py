@@ -285,7 +285,8 @@ class CoreAttention(nn.Module):
             output_size[2],
             output_size[3],
             dtype=query_layer.dtype,
-            device=torch.cuda.current_device())
+            device=query_layer.device)
+            # device=torch.cuda.current_device())
 
         # Rotary embeddings
         if self.rope:

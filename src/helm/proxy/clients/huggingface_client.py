@@ -100,7 +100,7 @@ class HuggingFaceServer:
         relevant_raw_request = {
             key: raw_request[key]
             for key in raw_request
-            if key not in ["engine", "prompt", "echo_prompt", "stop_sequences"]
+            if key not in ["engine", "prompt", "echo_prompt", "stop_sequences", "additional"]
         }
 
         if raw_request["additional"] is not None and "instance" in raw_request["additional"]:
@@ -134,6 +134,13 @@ class HuggingFaceServer:
             # notice it doesn't support any scores for prompt tokens, which means it returns no-sense for MultipleChoiceSeparateAdapter like hellaswag
             # https://github.com/stanford-crfm/helm/issues/1469
             scores_bias = 0
+            if raw_request["additional"] is not None and raw_request["additional"] == r"Output Scores":
+                # NOTICE: Hf client can't return scores correctly.
+                # It's just a temporary fix
+                assert raw_request["num_return_sequences"] == 1, "haven't test other cases"
+                output = self.model.forward(**{"input_ids": sequences, "attention_mask": torch.ones_like(sequences)})
+                scores = tuple(output.logits[:, i - 1, :] for i in range(encoded_input.input_ids.shape[1], sequences.shape[1])) # minus one due to auto-regressive
+            
             """
             # V2:  [Debug Only; Greedy decoding]
             with torch.no_grad():

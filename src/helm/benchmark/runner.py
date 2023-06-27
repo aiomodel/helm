@@ -257,6 +257,8 @@ class Runner:
         write(os.path.join(run_path, "scenario.json"), json.dumps(asdict_without_nones(scenario), indent=2))
 
         # Write scenario state
+        for i in range(len(scenario_state.request_states)):
+            object.__setattr__(scenario_state.request_states[i].request, 'additional', None)
         write(os.path.join(run_path, "scenario_state.json"), json.dumps(asdict_without_nones(scenario_state), indent=2))
 
         write(
