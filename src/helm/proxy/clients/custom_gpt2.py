@@ -1065,7 +1065,7 @@ class GPT2Model(GPT2PreTrainedModel):
 
         self.wte = nn.Embedding(config.vocab_size, self.embed_dim)
         self.rope = hasattr(config, "rope") and config.rope
-        if not self.rope:
+        if not self.rope or (hasattr(config, "force_ape") and config.force_ape):
             self.wpe = nn.Embedding(config.max_position_embeddings, self.embed_dim)
         self.drop = nn.Dropout(config.embd_pdrop)
         self.h = nn.ModuleList([GPT2Block(config, layer_idx=i) for i in range(config.num_hidden_layers)])

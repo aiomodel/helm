@@ -40,7 +40,8 @@ class HuggingFaceServer:
                 ).to(self.device)
         else:
             # model = AutoModelForCausalLM.from_pretrained(ckpt_dir, device_map = 'balanced_low_0', torch_dtype=torch.bfloat16, trust_remote_code=True)\
-            ckpt_dir = "/mnt/checkpoints/ours_6b7_DistDataV2_CCv3_300B_tohf/"
+            # ckpt_dir = "/mnt/checkpoints/ours_6b7_DistDataV2_CCv3_300B_tohf/"
+            ckpt_dir = "/mnt/checkpoints/ours_6b7_DistDataV2_CCv3_700Bof1000B_tohf/"
             _config = AutoConfig.from_pretrained(ckpt_dir)
             _config.use_flash_attn = False
             _config.scale_attn_weights = True
@@ -103,6 +104,12 @@ class HuggingFaceServer:
             if key not in ["engine", "prompt", "echo_prompt", "stop_sequences", "additional"]
         }
 
+        # get loss: for debug
+        _output = self.model.forward(**encoded_input)
+        _logits = _output.logits[:,:-1,:]
+        _label = encoded_input.input_ids[:,1:]
+        loss = torch.nn.functional.cross_entropy(_logits.squeeze(), _label.squeeze()).item()
+        
         if raw_request["additional"] is not None and "instance" in raw_request["additional"]:
             """
             # test for MultipleChoiceSeparateAdapter only
@@ -235,7 +242,7 @@ class HuggingFaceServer:
                 }
             )
 
-        return {"completions": completions, "input_length": len(encoded_input.input_ids[0])}
+        return {"completions": completions, "input_length": len(encoded_input.input_ids[0]), "loss": loss}
 
 
 class HuggingFaceClient(Client):
@@ -339,6 +346,7 @@ class HuggingFaceClient(Client):
             request_time=response["request_time"],
             request_datetime=response.get("request_datetime"),
             completions=completions,
+            loss=response["loss"],
             embedding=[],
         )
 

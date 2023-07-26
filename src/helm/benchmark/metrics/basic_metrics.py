@@ -454,6 +454,10 @@ class BasicMetric(Metric):
                 score_k = max(
                     score_func((gold.output.text, gold.test_cases), pred) for gold in code_golds for pred in preds
                 )
+            elif name.name == "loss":
+                # score_func = cast(Callable[[str, str], float], score_func)  # Make mypy happy.
+                score_1 = score_func(loss)
+                score_k = score_1
             else:
                 score_func = cast(Callable[[str, str], float], score_func)  # Make mypy happy.
                 score_1 = max(score_func(gold.output.text, preds[0]) for gold in golds)
@@ -485,6 +489,7 @@ class BasicMetric(Metric):
             "bleu_1": bleu_1,
             "bleu_4": bleu_4,
             "absolute_value_difference": absolute_value_difference,
+            "loss": lambda x: x,
         }
 
         stats: List[Stat] = []
@@ -497,6 +502,10 @@ class BasicMetric(Metric):
         assert request_state.result is not None
         sorted_completions: List[Sequence] = sorted(request_state.result.completions, key=lambda x: -x.logprob)
         preds: List[str] = [completion.text.strip() for completion in sorted_completions]
+        try:
+            loss: float = request_state.result.loss
+        except:
+            pass
 
         # Apply mapping if exists (e.g., for multiple-choice questions A -> Boston, B -> New York)
         # Note: If 'A' and 'B' were the only possible choices, smaller language models like GPT-2 would

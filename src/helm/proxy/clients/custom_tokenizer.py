@@ -271,7 +271,11 @@ class WarpTikTokenizer(PreTrainedTokenizer):
             else:
                 current_sub_tokens.append(token)
                 prev_is_special = False
-        out_string += b"".join(current_sub_tokens).decode("utf-8")
+        try:
+            out_string += b"".join(current_sub_tokens).decode("utf-8")
+        except:
+            print(b"".join(current_sub_tokens))
+            out_string += "bytes:" + str(b"".join(current_sub_tokens)).replace("b'\\", '\\').strip("'")
         return out_string
 
     def save_vocabulary(self, save_directory, filename_prefix: Optional[str] = None) -> Tuple[str]:

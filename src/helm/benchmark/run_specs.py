@@ -480,7 +480,7 @@ def get_msmarco_metric_specs(track: str, rank: Optional[int] = None) -> List[Met
                 "multiple_relevance_values": multiple_relevance_values,
             },
         ),
-    ] + get_basic_metric_specs(names=[])
+    ] + get_basic_metric_specs(names=["loss"])
 
 
 def get_toxicity_metric_specs() -> List[MetricSpec]:
@@ -520,7 +520,7 @@ def get_generative_harms_metric_specs(include_basic_metrics: bool = False) -> Li
 def get_summarization_metric_specs(args: Dict[str, Any]) -> List[MetricSpec]:
     return [
         MetricSpec(class_name="helm.benchmark.summarization_metrics.SummarizationMetric", args=args)
-    ] + get_basic_metric_specs([])
+    ] + get_basic_metric_specs(["loss"])
 
 
 def get_summarization_critique_metric_specs(num_respondents: int) -> List[MetricSpec]:
@@ -718,7 +718,8 @@ def get_civil_comments_spec(demographic: str) -> RunSpec:
         adapter_spec=adapter_spec,
         metric_specs=get_exact_match_metric_specs()
         + get_generative_harms_metric_specs()
-        + get_classification_metric_specs(),
+        + get_classification_metric_specs()
+        + get_basic_metric_specs(["loss"]),
         groups=["civil_comments"],
     )
 
@@ -740,7 +741,7 @@ def get_mmlu_spec(subject: str, method: str = ADAPT_MULTIPLE_CHOICE_JOINT) -> Ru
         name=f"mmlu:subject={subject},method={method}",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_exact_match_metric_specs(),
+        metric_specs=get_exact_match_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=["mmlu"],
     )
 
@@ -811,7 +812,7 @@ def get_commonsense_spec(dataset: str, method: str) -> RunSpec:
         name=f"commonsense:dataset={dataset},method={method}",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_exact_match_metric_specs(),
+        metric_specs=get_exact_match_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=[dataset],
     )
 
@@ -826,7 +827,7 @@ def get_quac_spec() -> RunSpec:
         name="quac",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_f1_metric_specs() + get_generative_harms_metric_specs(),
+        metric_specs=get_f1_metric_specs() + get_generative_harms_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=["quac"],
     )
 
@@ -842,7 +843,7 @@ def get_news_qa_spec() -> RunSpec:
         name="news_qa",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_f1_metric_specs() + get_generative_harms_metric_specs(),
+        metric_specs=get_f1_metric_specs() + get_generative_harms_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=["news_qa"],
     )
 
@@ -862,7 +863,7 @@ def get_truthful_qa_spec(task: str, method: str = ADAPT_MULTIPLE_CHOICE_JOINT) -
         name=f"truthful_qa:task={task},method={method}",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_exact_match_metric_specs(),
+        metric_specs=get_exact_match_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=["truthful_qa"],
     )
 
@@ -977,7 +978,8 @@ def get_raft_spec(subset: str) -> RunSpec:
         adapter_spec=adapter_spec,
         metric_specs=get_exact_match_metric_specs()
         + get_generative_harms_metric_specs()
-        + get_classification_metric_specs(),
+        + get_classification_metric_specs()
+        + get_basic_metric_specs(["loss"]),
         groups=["raft"],
     )
 
@@ -1104,7 +1106,7 @@ def get_boolq_spec(only_contrast=False) -> RunSpec:
         name="boolq" + (":only_contrast=True" if only_contrast else ""),
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_exact_match_metric_specs() + get_generative_harms_metric_specs(),
+        metric_specs=get_exact_match_metric_specs() + get_generative_harms_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=["boolq"],
     )
 
@@ -1144,7 +1146,7 @@ def get_imdb_spec(only_contrast=False) -> RunSpec:
         name="imdb" + (":only_contrast=True" if only_contrast else ""),
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_exact_match_metric_specs() + get_classification_metric_specs(),
+        metric_specs=get_exact_match_metric_specs() + get_classification_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=["imdb"],
     )
 
@@ -1313,7 +1315,7 @@ def get_natural_qa_spec(mode: str) -> RunSpec:
         name=f"natural_qa:mode={mode}",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_f1_metric_specs() + get_generative_harms_metric_specs(),
+        metric_specs=get_f1_metric_specs() + get_generative_harms_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=[f"natural_qa_{mode}"],
     )
 
@@ -1362,7 +1364,7 @@ def get_narrativeqa_spec() -> RunSpec:
         name="narrative_qa",
         scenario_spec=scenario_spec,
         adapter_spec=adapter_spec,
-        metric_specs=get_open_ended_generation_metric_specs() + get_generative_harms_metric_specs(),
+        metric_specs=get_open_ended_generation_metric_specs() + get_generative_harms_metric_specs() + get_basic_metric_specs(["loss"]),
         groups=["narrative_qa"],
     )
 
