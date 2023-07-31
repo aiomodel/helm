@@ -140,6 +140,12 @@ class AutoClient(Client):
                 client = HuggingFaceClient(cache_config=cache_config)
             elif model == "EleutherAI/gpt-j-6b":
                 client = HuggingFaceClient(cache_config=cache_config)
+            elif model == "openlm-research/open_llama_7b":
+                client = HuggingFaceClient(cache_config=cache_config)
+            elif model == "openlm-research/open_llama_7b_v2":
+                client = HuggingFaceClient(cache_config=cache_config)
+            elif model == "togethercomputer/RedPajama-INCITE-7B-Base":
+                client = HuggingFaceClient(cache_config=cache_config)
             else:
                 raise ValueError(f"Could not find client for model: {model}")
             self.clients[model] = client
@@ -217,6 +223,12 @@ class AutoClient(Client):
             elif tokenizer == "ours/custom_gpt2_7b":
                 client = HuggingFaceClient(cache_config=cache_config)
             elif tokenizer == "EleutherAI/gpt-j-6b":
+                client = HuggingFaceClient(cache_config=cache_config)
+            elif tokenizer == "openlm-research/open_llama_7b":
+                client = HuggingFaceClient(cache_config=cache_config)
+            elif tokenizer == "openlm-research/open_llama_7b_v2":
+                client = HuggingFaceClient(cache_config=cache_config)
+            elif tokenizer == "togethercomputer/RedPajama-INCITE-7B-Base":
                 client = HuggingFaceClient(cache_config=cache_config)
             else:
                 raise ValueError(f"Could not find tokenizer client for model: {tokenizer}")

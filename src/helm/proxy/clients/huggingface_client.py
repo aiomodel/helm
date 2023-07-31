@@ -3,6 +3,7 @@ import os
 import re
 import torch
 from dataclasses import asdict
+import transformers
 from transformers import AutoModelForCausalLM, AutoTokenizer, AutoConfig
 from typing import Any, Dict, List
 
@@ -70,6 +71,9 @@ class HuggingFaceServer:
             # self.model.eval()
         if not is_ours:
             with htrack_block(f"Loading Hugging Face tokenizer model for config {model_config}"):
+                if "llama" in model_config.model_id:
+                    print(" We set use_fast to false if we use llama-series.")
+                    model_kwargs["use_fast"] = False
                 self.tokenizer = AutoTokenizer.from_pretrained(model_config.model_id, **model_kwargs)
         else:
             tokenizer = WarpTikTokenizer(add_bos_token=False, add_eos_token=False)
@@ -78,6 +82,7 @@ class HuggingFaceServer:
             tokenizer.model_max_length = 2048
             self.tokenizer = tokenizer
 
+    @torch.no_grad()
     def serve_request(self, raw_request: Dict[str, Any]):
         encoded_input = self.tokenizer(raw_request["prompt"], return_tensors="pt").to(self.device)
         raw_request = deepcopy(raw_request)
@@ -88,14 +93,24 @@ class HuggingFaceServer:
         del raw_request["top_k_per_token"]
         stop_sequences = None
         if len(raw_request["stop_sequences"]) > 0:
-            stop_sequence_ids = self.tokenizer(raw_request["stop_sequences"])
-            # Total number of stop words should be 1.
-            assert len(stop_sequence_ids.input_ids) == 1
-            # Total number of tokens in each stop word should be 1.
-            assert len(stop_sequence_ids.input_ids[0]) == 1
-            stop_sequences = raw_request["stop_sequences"][0]
-            del raw_request["stop_sequences"]
-            raw_request["eos_token_id"] = stop_sequence_ids.input_ids[0][0]
+            if raw_request["stop_sequences"][0] in ['\n', '\n\n'] and isinstance(self.tokenizer, transformers.models.llama.tokenization_llama.LlamaTokenizer):
+                # self.tokenizer(raw_request["stop_sequences"]) leads to 31822, 13
+                # In [14]: self.tokenizer.decode([31822, 13])
+                # Out[14]: '\n'
+                # In [15]: self.tokenizer.decode([31822])
+                # Out[15]: ''
+                # In [16]: self.tokenizer.decode([31822, 13, 13])
+                # Out[16]: '\n\n'
+                raw_request["eos_token_id"] = 13
+            else:
+                stop_sequence_ids = self.tokenizer(raw_request["stop_sequences"], add_special_tokens=False)
+                # Total number of stop words should be 1.
+                assert len(stop_sequence_ids.input_ids) == 1
+                # Total number of tokens in each stop word should be 1.
+                assert len(stop_sequence_ids.input_ids[0]) == 1
+                stop_sequences = raw_request["stop_sequences"][0]
+                del raw_request["stop_sequences"]
+                raw_request["eos_token_id"] = stop_sequence_ids.input_ids[0][0]
 
         # Strip out irrelevant parameters
         relevant_raw_request = {
@@ -273,6 +288,18 @@ class HuggingFaceClient(Client):
             elif model == "ours/custom_gpt2_7b":
                 self.model_server_instances[model] = HuggingFaceServer(
                     HuggingFaceModelConfig.from_string("ours/custom_gpt2_7b"), is_ours=True
+                )
+            elif model == "openlm-research/open_llama_7b":
+                self.model_server_instances[model] = HuggingFaceServer(
+                    HuggingFaceModelConfig.from_string("openlm-research/open_llama_7b")
+                )
+            elif model == "openlm-research/open_llama_7b_v2":
+                self.model_server_instances[model] = HuggingFaceServer(
+                    HuggingFaceModelConfig.from_string("openlm-research/open_llama_7b_v2")
+                )
+            elif model == "togethercomputer/RedPajama-INCITE-7B-Base":
+                self.model_server_instances[model] = HuggingFaceServer(
+                    HuggingFaceModelConfig.from_string("togethercomputer/RedPajama-INCITE-7B-Base")
                 )
             else:
                 raise Exception(f"Unknown HuggingFace model: {model}")

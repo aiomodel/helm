@@ -159,6 +159,9 @@ class WindowServiceFactory:
             "together/llama-7b",
             "together/alpaca-7b",
             "together/vicuna-13b",
+            "openlm-research/open_llama_7b",
+            "openlm-research/open_llama_7b_v2",
+            "togethercomputer/RedPajama-INCITE-7B-Base",
         ]:
             window_service = LlamaWindowService(service)
         elif organization == "cohere":

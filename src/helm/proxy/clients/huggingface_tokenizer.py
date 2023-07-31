@@ -24,6 +24,9 @@ _KNOWN_TOKENIZER_NAMES: Set[str] = {
     "bigcode/starcoder",
     "hf-internal-testing/llama-tokenizer",
     "ours/custom_gpt2_7b",
+    "openlm-research/open_llama_7b",
+    "openlm-research/open_llama_7b_v2",
+    "togethercomputer/RedPajama-INCITE-7B-Base"
 }
 
 
@@ -67,12 +70,12 @@ class HuggingFaceTokenizers:
                 # the Hugging Face Transformers library, while the fast versions are the ones provided by Hugging Face
                 # Tokenizers, which are written in Rust." So, use the "fast" version of the tokenizers if available.
                 return AutoTokenizer.from_pretrained(
-                    hf_tokenizer_name, local_files_only=True, use_fast=True, **tokenizer_kwargs
+                    hf_tokenizer_name, local_files_only=True, use_fast=True if "llama" not in hf_tokenizer_name else False, **tokenizer_kwargs
                 )
             except OSError:
                 hlog(f"Local files do not exist for HuggingFace tokenizer: {hf_tokenizer_name}. Downloading...")
                 return AutoTokenizer.from_pretrained(
-                    hf_tokenizer_name, local_files_only=False, use_fast=True, **tokenizer_kwargs
+                    hf_tokenizer_name, local_files_only=False, use_fast=True if "llama" not in hf_tokenizer_name else False, **tokenizer_kwargs
                 )
 
         if tokenizer_name not in HuggingFaceTokenizers.tokenizers:

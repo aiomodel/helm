@@ -38,6 +38,7 @@ GPT2_TOKENIZER_TAG: str = "gpt2_tokenizer"
 AI21_TOKENIZER_TAG: str = "ai21_tokenizer"
 COHERE_TOKENIZER_TAG: str = "cohere_tokenizer"
 OPT_TOKENIZER_TAG: str = "opt_tokenizer"
+LLAMA_TOKENIZER_TAG: str = "llama_tokenizer"
 GPTJ_TOKENIZER_TAG: str = "gptj_tokenizer"
 OUR_TOKENIZER_TAG: str = "our_tokenizer"
 GPT4_TOKENIZER_TAG: str = "gpt4_tokenizer"
@@ -279,6 +280,39 @@ ALL_MODELS = [
             FULL_FUNCTIONALITY_TEXT_MODEL_TAG,
             ABLATION_MODEL_TAG,
             OUR_TOKENIZER_TAG,
+            BUGGY_TEMP_0_TAG,
+        ],
+    ),
+    Model(
+        group="openlm-research",
+        name="openlm-research/open_llama_7b",
+        tags=[
+            TEXT_MODEL_TAG,
+            FULL_FUNCTIONALITY_TEXT_MODEL_TAG,
+            ABLATION_MODEL_TAG,
+            LLAMA_TOKENIZER_TAG,
+            BUGGY_TEMP_0_TAG,
+        ],
+    ),
+    Model(
+        group="openlm-research",
+        name="openlm-research/open_llama_7b_v2",
+        tags=[
+            TEXT_MODEL_TAG,
+            FULL_FUNCTIONALITY_TEXT_MODEL_TAG,
+            ABLATION_MODEL_TAG,
+            LLAMA_TOKENIZER_TAG,
+            BUGGY_TEMP_0_TAG,
+        ],
+    ),    
+    Model(
+        group="togethercomputer",
+        name="togethercomputer/RedPajama-INCITE-7B-Base",
+        tags=[
+            TEXT_MODEL_TAG,
+            FULL_FUNCTIONALITY_TEXT_MODEL_TAG,
+            ABLATION_MODEL_TAG,
+            LLAMA_TOKENIZER_TAG,
             BUGGY_TEMP_0_TAG,
         ],
     ),
